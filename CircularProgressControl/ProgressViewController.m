@@ -8,6 +8,9 @@
 
 #import "ProgressViewController.h"
 
+//Framework Header Imports
+#import <AudioToolbox/AudioToolbox.h>
+
 //Custom Header Imports
 #import "EFCircularSlider.h"
 #import "EFTimePickerViewController.h"
@@ -24,6 +27,8 @@
     EFCircularSlider* hourSlider;
     
     BOOL timerOn;
+    BOOL pressedDone;
+    BOOL stopButtonPressed;
 }
 
 int hours, minutes, seconds;
@@ -107,7 +112,7 @@ int secondsLeft;
     //Set the slider's maximum value to '10800'. (Remember, we're talkin' seconds here.)
     minuteSlider.maximumValue = 10800;
     
-    #warning I'm actually not sure what this does...
+#warning I'm actually not sure what this does...
     minuteSlider.labelColor = [UIColor colorWithRed:76/255.0f green:111/255.0f blue:137/255.0f alpha:1.0f];
     
     //Allows for the 'snapping' feel that we get when selecting a duration.
@@ -149,6 +154,7 @@ int secondsLeft;
 {
     //If there are more than zero seconds left on the clock, count down one second.
     if(secondsLeft > 0 ){
+        pressedDone = NO;
         timerOn = YES;
         secondsLeft -- ;
         hours = secondsLeft / 3600;
@@ -160,14 +166,23 @@ int secondsLeft;
     //Otherwise, sets the 'stopButton' button to a gray color, and disables it.
     else
     {
-            self.stopButton.enabled = NO;
-            self.stopButton.tintColor = [self getUIColorObjectFromHexString:@"#BDC3C7" alpha:1.0];
+        self.stopButton.enabled = NO;
+        self.stopButton.tintColor = [self getUIColorObjectFromHexString:@"#BDC3C7" alpha:1.0];
+        if (pressedDone == NO && !stopButtonPressed == YES)
+        {
+            [[[UIAlertView alloc] initWithTitle:@"Timer Done" message:nil delegate:self cancelButtonTitle:@"Dismiss" otherButtonTitles:nil, nil] show];
+        }
+        pressedDone = YES;
+        AudioServicesPlayAlertSound(kSystemSoundID_Vibrate);
     }
 }
 
 //You guessed it; this method stops the timer. (*gasp!*)
 - (IBAction)stopButton:(id)sender
 {
+    //Sets the 'stopButtonPressed' boolean value to YES.
+    stopButtonPressed = YES;
+    
     //Fake it till' you make it; set the text of the timer's label to '0:00'.
     self.timeLabel.text = @"0:00";
     
@@ -227,7 +242,7 @@ int secondsLeft;
     
     //Initialize the minute timer.
     [minuteSlider addTarget:self action:@selector(minuteDidChange:) forControlEvents:UIControlEventValueChanged];
-
+    
     //Make our 'stopButton' button red again!
     [self.stopButton setTitleColor:[self getUIColorObjectFromHexString:@"#BDC3C7" alpha:1.0] forState:UIControlStateNormal];
 }
