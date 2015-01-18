@@ -26,4 +26,9 @@
 //Strings
 @property (strong, nonatomic) NSString *oldTime;
 
+@property (assign, nonatomic, readonly) double percent;
+@property (nonatomic) NSTimeInterval elapsedTime;
+@property (nonatomic) NSTimeInterval timeLimit;
+@property (nonatomic) CGFloat current;
+
 @end

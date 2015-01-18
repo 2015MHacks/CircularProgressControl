@@ -14,7 +14,7 @@
 @interface EFCircularSlider ()
 
 @property (nonatomic) CGFloat radius;
-@property (nonatomic) int     angleFromNorth;
+@property (nonatomic) float     angleFromNorth;
 @property (nonatomic, strong) NSMutableDictionary *labelsWithPercents;
 
 @property (nonatomic, readonly) CGFloat handleWidth;
@@ -159,10 +159,10 @@ static const CGFloat kFitFrameRadius = -1.0;
     [self sendActionsForControlEvents:UIControlEventValueChanged];
 }
 
--(void)setAngleFromNorth:(int)angleFromNorth
+-(void)setAngleFromNorth:(float)angleFromNorth
 {
     _angleFromNorth = angleFromNorth;
-    NSAssert(_angleFromNorth >= 0, @"_angleFromNorth %d must be greater than 0", angleFromNorth);
+    NSAssert(_angleFromNorth >= 0, @"_angleFromNorth %f must be greater than 0", angleFromNorth);
 }
 
 -(void) setRadius:(CGFloat)radius
@@ -305,7 +305,7 @@ static const CGFloat kFitFrameRadius = -1.0;
     [self drawLine:ctx];
     
     // Draw the draggable 'handle'
-    [self drawHandle:ctx];
+    //[self drawHandle:ctx];
     
     // Add the labels
     [self drawInnerLabels:ctx];

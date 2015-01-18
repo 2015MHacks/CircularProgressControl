@@ -12,10 +12,14 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 //Custom Header Imports
+#import "CircleProgressView.h"
+#import "CircleShapeLayer.h"
 #import "EFCircularSlider.h"
 #import "EFTimePickerViewController.h"
 
 @interface ProgressViewController ()
+
+@property (assign, nonatomic) double initialProgress;
 
 @property (strong, nonatomic) NSTimer *timer;
 
@@ -29,10 +33,20 @@
     BOOL timerOn;
     BOOL pressedDone;
     BOOL stopButtonPressed;
+    BOOL firstTimeRun;
+    BOOL isFromAnim;
 }
+@synthesize percent = _percent;
 
 int hours, minutes, seconds;
 int secondsLeft;
+
+float customRounding(float value)
+{
+    const float roundingValue = 0.05;
+    float mulitpler = floor(value / roundingValue);
+    return mulitpler * roundingValue;
+}
 
 //Allows us to create a UIColor by using a hex string.
 - (UIColor *)getUIColorObjectFromHexString:(NSString *)hexStr alpha:(CGFloat)alpha
@@ -98,31 +112,32 @@ int secondsLeft;
     minuteSlider.filledColor = [UIColor colorWithRed:155/255.0f green:211/255.0f blue:156/255.0f alpha:1.0f];
     
     //Set the marking labels, (which are actually hidden), to various increments.
-    [minuteSlider setInnerMarkingLabels:@[@"15", @"10", @"15", @"20", @"25", @"30", @"35", @"40", @"45", @"50", @"55", @"60"]];
+    [minuteSlider setInnerMarkingLabels:@[@"•", @"•", @"–", @"•", @"•", @"|", @"•", @"•", @"–", @"•", @"•", @"|"]];
     
     //Set the font size to '0' to psuedo-hide the labels.
-    minuteSlider.labelFont = [UIFont systemFontOfSize:0];
+    minuteSlider.labelFont = [UIFont systemFontOfSize:20];
     
     //Set the width of the slider to a nice, fat 20 pixels.
     minuteSlider.lineWidth = 20;
     
     //Set the slider's minimum value to '0'.
-    minuteSlider.minimumValue = 0;
+    minuteSlider.minimumValue = 0.0f;
     
     //Set the slider's maximum value to '10800'. (Remember, we're talkin' seconds here.)
-    minuteSlider.maximumValue = 10800;
+    minuteSlider.maximumValue = 10800.0f;
     
 #warning I'm actually not sure what this does...
     minuteSlider.labelColor = [UIColor colorWithRed:76/255.0f green:111/255.0f blue:137/255.0f alpha:1.0f];
     
     //Allows for the 'snapping' feel that we get when selecting a duration.
-    minuteSlider.snapToLabels = YES;
+    minuteSlider.snapToLabels = NO;
     
     //Add the completed subview to the main view.
     [self.view addSubview:minuteSlider];
     
     //Initialize the minute timer.
     [minuteSlider addTarget:self action:@selector(minuteDidChange:) forControlEvents:UIControlEventValueChanged];
+    firstTimeRun = YES;
 }
 
 -(void)minuteDidChange:(EFCircularSlider*)slider
@@ -132,13 +147,17 @@ int secondsLeft;
     [self.stopButton setTitleColor:[self getUIColorObjectFromHexString:@"#E74C3C" alpha:1.0] forState:UIControlStateNormal];
     
     //Do the math-y bits and update the clock one second.
-    int newVal = (int)slider.currentValue < 60 ? (int)slider.currentValue : 0;
-    NSString *oldTime = self.timeLabel.text;
-    NSRange colonRange = [oldTime rangeOfString:@":"];
-    self.timeLabel.text = [NSString stringWithFormat:@"%@:%02d", [oldTime substringToIndex:colonRange.location], newVal];
-    int seconds = (int)ceil(slider.currentValue);
-    secondsLeft = seconds;
-    [self updateCounter:timer];
+    if (!isFromAnim == YES)
+    {
+        int newVal = (int)slider.currentValue < 60 ? (int)slider.currentValue : 0;
+        NSString *oldTime = self.timeLabel.text;
+        NSRange colonRange = [oldTime rangeOfString:@":"];
+        self.timeLabel.text = [NSString stringWithFormat:@"%@:%02d", [oldTime substringToIndex:colonRange.location], newVal];
+        int seconds = (int)ceil(slider.currentValue);
+        secondsLeft = seconds;
+        [self updateCounter:timer];
+    }
+    self.current = seconds;
     
     //This is to prevent second calculations from being way off.
     if([timer isValid])
@@ -148,32 +167,80 @@ int secondsLeft;
     
     //Start our new timer, with intervals of one second, of course.
     timer = [NSTimer scheduledTimerWithTimeInterval:1.0f target:self selector:@selector(updateCounter:) userInfo:nil repeats:YES];
+    firstTimeRun = YES;
 }
 
 - (void)updateCounter:(NSTimer *)theTimer
 {
+    if (minuteSlider.currentValue >= 1.00f && firstTimeRun == NO)
+    {
+        isFromAnim = YES;
+        float secLeft = [[NSNumber numberWithInt: secondsLeft] floatValue];
+        float maxSec = [[NSNumber numberWithInt: 10800] floatValue];
+        float calcVal = secLeft/maxSec;
+        
+        customRounding(calcVal);
+        
+        float two = [[NSNumber numberWithInt: 2] floatValue];
+        float radius = [[NSNumber numberWithInt: 310] floatValue];
+        
+        float calcVal2 = calcVal/(two * M_1_PI * radius);
+        
+        customRounding(calcVal2);
+        NSLog(@"Last Reported Value: '%f'.", self.current);
+        
+        float minuteCurr =  @(minuteSlider.currentValue).floatValue;
+        
+        NSLog(@"RESULT: '%f'.", (minuteCurr) - (calcVal2));
+        
+        float final = (minuteCurr) - (calcVal2);
+        
+        minuteSlider.currentValue = final;
+        NSLog(@"CURR %f", minuteSlider.currentValue);
+    }
+    
     //If there are more than zero seconds left on the clock, count down one second.
-    if(secondsLeft > 0 ){
+    if(secondsLeft > 0)
+    {
         pressedDone = NO;
         timerOn = YES;
+        firstTimeRun = NO;
         secondsLeft -- ;
         hours = secondsLeft / 3600;
         minutes = (secondsLeft % 3600) / 60;
         seconds = (secondsLeft %3600) % 60;
         myCounterLabel.text = [NSString stringWithFormat:@"%2d:%02d:%02d", hours, minutes, seconds];
+        
+        NSLog(@"Slider Filled To: '%2f'.", minuteSlider.currentValue);
+        
+        //Change timer color based on the amount of time left.
+//                if (secondsLeft < 1800 && secondsLeft > 1200)
+//                {
+//                    minuteSlider.filledColor = [UIColor colorWithRed:243/255.0f green:156/255.0f blue:18/255.0f alpha:1.0f];
+//                }
+//                else if(secondsLeft <= 1200 && !secondsLeft <= 1800)
+//                {
+//                    minuteSlider.filledColor = [UIColor colorWithRed:231/255.0f green:76/255.0f blue:60/255.0f alpha:1.0f];
+//                }
+//                else
+//                {
+//                    minuteSlider.filledColor = [UIColor colorWithRed:155/255.0f green:211/255.0f blue:156/255.0f alpha:1.0f];
+//                }
     }
     
     //Otherwise, sets the 'stopButton' button to a gray color, and disables it.
-    else
+    else if(secondsLeft <= 0)
     {
         self.stopButton.enabled = NO;
-        self.stopButton.tintColor = [self getUIColorObjectFromHexString:@"#BDC3C7" alpha:1.0];
+        [self.stopButton setTitleColor:[self getUIColorObjectFromHexString:@"#BDC3C7" alpha:1.0] forState:UIControlStateNormal];
+        
         if (pressedDone == NO && !stopButtonPressed == YES)
         {
             [[[UIAlertView alloc] initWithTitle:@"Timer Done" message:nil delegate:self cancelButtonTitle:@"Dismiss" otherButtonTitles:nil, nil] show];
+            AudioServicesPlayAlertSound(kSystemSoundID_Vibrate);
         }
+        
         pressedDone = YES;
-        AudioServicesPlayAlertSound(kSystemSoundID_Vibrate);
     }
 }
 
@@ -217,10 +284,10 @@ int secondsLeft;
     minuteSlider.filledColor = [UIColor colorWithRed:155/255.0f green:211/255.0f blue:156/255.0f alpha:1.0f];
     
     //Set the marking labels, (which are actually hidden), to various increments.
-    [minuteSlider setInnerMarkingLabels:@[@"15", @"10", @"15", @"20", @"25", @"30", @"35", @"40", @"45", @"50", @"55", @"60"]];
+    [minuteSlider setInnerMarkingLabels:@[@"•", @"•", @"–", @"•", @"•", @"|", @"•", @"•", @"–", @"•", @"•", @"|"]];
     
     //Set the font size to '0' to psuedo-hide the labels.
-    minuteSlider.labelFont = [UIFont systemFontOfSize:0];
+    minuteSlider.labelFont = [UIFont systemFontOfSize:20];
     
     //Set the width of the slider to a nice, fat 20 pixels.
     minuteSlider.lineWidth = 20;
@@ -243,7 +310,7 @@ int secondsLeft;
     //Initialize the minute timer.
     [minuteSlider addTarget:self action:@selector(minuteDidChange:) forControlEvents:UIControlEventValueChanged];
     
-    //Make our 'stopButton' button red again!
+    //Make our 'stopButton' button gray again!
     [self.stopButton setTitleColor:[self getUIColorObjectFromHexString:@"#BDC3C7" alpha:1.0] forState:UIControlStateNormal];
 }
 
